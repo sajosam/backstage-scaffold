@@ -1,0 +1,75 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: golang-base-template
+  title: Golang Base Template
+  description: A basic Golang application template with Docker support
+spec:
+  owner: backstage-admin
+  type: service
+
+  parameters:
+    - title: Add component metadata
+      required:
+        - owner
+        - reponame
+        - organization
+        - description
+
+      properties:
+        reponame:
+          title: Repository Name
+          type: string
+          description: Unique name of the component
+        owner:
+          title: Owner
+          type: string
+          description: Owner of the component
+          ui:field: OwnerPicker
+        organization:
+          title: Organization
+          type: string
+          description: Organization where the component will be hosted
+        description:
+          title: Description
+          type: string
+          description: Description of the component
+
+  steps:
+    - id: fetch-base
+      name: Fetch Base
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          name: ${{ parameters.reponame }}
+          owner: ${{ parameters.owner }}
+          repository_path: ${{ parameters.organization }}/${{ parameters.reponame }}
+          repoName: ${{ parameters.reponame }}
+          repoOwner: ${{ parameters.organization }}
+
+
+    - id: publish
+      name: Publish to GitHub
+      action: publish:github
+      input:
+        allowedHosts: ['github.com']
+        description: ${{ parameters.description }}
+        repoUrl: github.com?owner=${{ parameters.organization }}&repo=${{ parameters.reponame }}
+        defaultBranch: main
+        repoVisibility: private
+
+    - id: register-with-catalog
+      name: Register with the catalog
+      action: catalog:register
+      input:
+        catalogInfoUrl: ${{ steps['publish'].output.remoteUrl | replace('.git','') }}/blob/main/catalog-info.yaml
+
+  output:
+    links:
+      - title: Repository
+        url: ${{ steps['publish'].output.remoteUrl }}
+    text:
+    - title: More information
+      content: |
+        **Entity URL:** `${{ steps['publish'].output.remoteUrl }}`
